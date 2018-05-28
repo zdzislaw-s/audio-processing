@@ -7,7 +7,7 @@ if { [info exists ::origin_dir_loc] } {
 }
 
 # Set the project name
-set _xil_proj_name_ "audio_controller"
+set _xil_proj_name_ "audio-processing"
 
 # Use project name variable, if specified in the tcl shell
 if { [info exists ::user_project_name] } {
@@ -63,7 +63,7 @@ if { $::argc > 0 } {
 }
 
 # Set the directory path for the original project from where this script was exported
-set orig_proj_dir "[file normalize "$origin_dir/../../tutorial17/audio_controller"]"
+set orig_proj_dir "[file normalize "$origin_dir/../../tutorial20/audio-processing"]"
 
 # Create project
 create_project ${_xil_proj_name_} ./${_xil_proj_name_} -part xc7z020clg484-1
@@ -99,7 +99,8 @@ update_ip_catalog -rebuild
 # Set 'sources_1' fileset object
 set obj [get_filesets sources_1]
 set files [list \
- [file normalize "${origin_dir}/pl/src/verilog/audio_controller_wrapper.v"] \
+ [file normalize "${origin_dir}/pl/src/verilog/sample-scaler.v"] \
+ [file normalize "${origin_dir}/pl/src/verilog/audio_processing_wrapper.v"] \
 ]
 add_files -norecurse -fileset $obj $files
 
@@ -111,7 +112,7 @@ add_files -norecurse -fileset $obj $files
 
 # Set 'sources_1' fileset properties
 set obj [get_filesets sources_1]
-set_property -name "top" -value "audio_controller_wrapper" -objects $obj
+set_property -name "top" -value "audio_processing_wrapper" -objects $obj
 
 # Create 'constrs_1' fileset (if not found)
 if {[string equal [get_filesets -quiet constrs_1] ""]} {
@@ -122,9 +123,9 @@ if {[string equal [get_filesets -quiet constrs_1] ""]} {
 set obj [get_filesets constrs_1]
 
 # Add/Import constrs file and set constrs file properties
-set file "[file normalize "$origin_dir/pl/src/constraints/adau1761_controller.xdc"]"
+set file "[file normalize "$origin_dir/pl/src/constraints/audio-processing.xdc"]"
 set file_added [add_files -norecurse -fileset $obj [list $file]]
-set file "$origin_dir/pl/src/constraints/adau1761_controller.xdc"
+set file "$origin_dir/pl/src/constraints/audio-processing.xdc"
 set file [file normalize $file]
 set file_obj [get_files -of_objects [get_filesets constrs_1] [list "*$file"]]
 set_property -name "file_type" -value "XDC" -objects $file_obj
@@ -143,17 +144,25 @@ set obj [get_filesets sim_1]
 
 # Set 'sim_1' fileset properties
 set obj [get_filesets sim_1]
-set_property -name "top" -value "audio_controller_wrapper" -objects $obj
+set_property -name "top" -value "audio_processing_wrapper" -objects $obj
 
 
 # Adding sources referenced in BDs, if not already added
+if { [get_files sample-scaler.v] == "" } {
+  import_files -quiet -fileset sources_1 /home/zdzislaw/Projects/FPGA/beyond-circuits.com/projects-vcs/audio-processing/pl/src/verilog/sample-scaler.v
+}
 
 
-# Proc to create BD audio_controller
-proc cr_bd_audio_controller { parentCell } {
+# Proc to create BD audio_processing
+proc cr_bd_audio_processing { parentCell } {
+# The design that will be created by this Tcl proc contains the following 
+# module references:
+# sample_scaler
+
+
 
   # CHANGE DESIGN NAME HERE
-  set design_name audio_controller
+  set design_name audio_processing
 
   common::send_msg_id "BD_TCL-003" "INFO" "Currently there is no design <$design_name> in project, so creating one..."
 
@@ -167,6 +176,7 @@ proc cr_bd_audio_controller { parentCell } {
   if { $bCheckIPs == 1 } {
      set list_check_ips "\ 
   user.org:user:adau1761_controller:1.0\
+  user.org:user:axi4_stream_delay:1.0\
   xilinx.com:ip:clk_wiz:6.0\
   user.org:user:i2s_receiver:1.0\
   user.org:user:i2s_transmitter:1.0\
@@ -190,6 +200,31 @@ proc cr_bd_audio_controller { parentCell } {
    }
 
   }
+
+  ##################################################################
+  # CHECK Modules
+  ##################################################################
+  set bCheckModules 1
+  if { $bCheckModules == 1 } {
+     set list_check_mods "\ 
+  sample_scaler\
+  "
+
+   set list_mods_missing ""
+   common::send_msg_id "BD_TCL-006" "INFO" "Checking if the following modules exist in the project's sources: $list_check_mods ."
+
+   foreach mod_vlnv $list_check_mods {
+      if { [can_resolve_reference $mod_vlnv] == 0 } {
+         lappend list_mods_missing $mod_vlnv
+      }
+   }
+
+   if { $list_mods_missing ne "" } {
+      catch {common::send_msg_id "BD_TCL-115" "ERROR" "The following module(s) are not found in the project: $list_mods_missing" }
+      common::send_msg_id "BD_TCL-008" "INFO" "Please add source files for the missing module(s) above."
+      set bCheckIPsPassed 0
+   }
+}
 
   if { $bCheckIPsPassed != 1 } {
     common::send_msg_id "BD_TCL-1003" "WARNING" "Will not continue with creation of design due to the error(s) above."
@@ -228,38 +263,57 @@ proc cr_bd_audio_controller { parentCell } {
   set FIXED_IO [ create_bd_intf_port -mode Master -vlnv xilinx.com:display_processing_system7:fixedio_rtl:1.0 FIXED_IO ]
 
   # Create ports
-  set adau1761_adc_sdata_0 [ create_bd_port -dir I adau1761_adc_sdata_0 ]
-  set adau1761_bclk_0 [ create_bd_port -dir I adau1761_bclk_0 ]
+  set adau1761_adc_sdata_0 [ create_bd_port -dir I -type data adau1761_adc_sdata_0 ]
+  set adau1761_bclk_0 [ create_bd_port -dir I -type data adau1761_bclk_0 ]
   set adau1761_cclk_0 [ create_bd_port -dir O adau1761_cclk_0 ]
   set adau1761_cdata_0 [ create_bd_port -dir O adau1761_cdata_0 ]
   set adau1761_clatchn_0 [ create_bd_port -dir O adau1761_clatchn_0 ]
   set adau1761_cout_0 [ create_bd_port -dir I adau1761_cout_0 ]
-  set adau1761_dac_sdata_0 [ create_bd_port -dir O adau1761_dac_sdata_0 ]
-  set adau1761_lrclk_0 [ create_bd_port -dir I adau1761_lrclk_0 ]
-  set adau1761_mclk [ create_bd_port -dir O adau1761_mclk ]
-  set led0 [ create_bd_port -dir O led0 ]
+  set adau1761_dac_sdata_0 [ create_bd_port -dir O -type data adau1761_dac_sdata_0 ]
+  set adau1761_lrclk_0 [ create_bd_port -dir I -type data adau1761_lrclk_0 ]
+  set adau1761_mclk [ create_bd_port -dir O -type clk adau1761_mclk ]
+  set leds [ create_bd_port -dir O -from 7 -to 0 -type data leds ]
 
   # Create instance: adau1761_controller_0, and set properties
   set adau1761_controller_0 [ create_bd_cell -type ip -vlnv user.org:user:adau1761_controller:1.0 adau1761_controller_0 ]
 
+  # Create instance: axi4_stream_delay_0, and set properties
+  set axi4_stream_delay_0 [ create_bd_cell -type ip -vlnv user.org:user:axi4_stream_delay:1.0 axi4_stream_delay_0 ]
+
+  set_property -dict [ list \
+   CONFIG.TDATA_NUM_BYTES {4} \
+ ] [get_bd_intf_pins /axi4_stream_delay_0/M_AXIS]
+
+  set_property -dict [ list \
+   CONFIG.TDATA_NUM_BYTES {4} \
+ ] [get_bd_intf_pins /axi4_stream_delay_0/S_AXIS]
+
   # Create instance: clk_wiz_0, and set properties
   set clk_wiz_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:clk_wiz:6.0 clk_wiz_0 ]
   set_property -dict [ list \
+   CONFIG.CLKIN2_JITTER_PS {166.66} \
+   CONFIG.CLKOUT1_DRIVES {BUFG} \
    CONFIG.CLKOUT1_JITTER {305.592} \
    CONFIG.CLKOUT1_PHASE_ERROR {298.923} \
    CONFIG.CLKOUT1_REQUESTED_OUT_FREQ {24} \
-   CONFIG.CLKOUT1_USED {true} \
-   CONFIG.CLK_OUT1_PORT {clk_out1} \
+   CONFIG.CLKOUT2_DRIVES {BUFG} \
+   CONFIG.CLKOUT3_DRIVES {BUFG} \
+   CONFIG.CLKOUT4_DRIVES {BUFG} \
+   CONFIG.CLKOUT5_DRIVES {BUFG} \
+   CONFIG.CLKOUT6_DRIVES {BUFG} \
+   CONFIG.CLKOUT7_DRIVES {BUFG} \
    CONFIG.ENABLE_CLOCK_MONITOR {false} \
    CONFIG.FEEDBACK_SOURCE {FDBK_AUTO} \
    CONFIG.MMCM_CLKFBOUT_MULT_F {50.250} \
+   CONFIG.MMCM_CLKIN2_PERIOD {10.000} \
    CONFIG.MMCM_CLKOUT0_DIVIDE_F {41.875} \
    CONFIG.MMCM_COMPENSATION {ZHOLD} \
    CONFIG.MMCM_DIVCLK_DIVIDE {5} \
    CONFIG.PRIMITIVE {MMCM} \
    CONFIG.RESET_PORT {resetn} \
    CONFIG.RESET_TYPE {ACTIVE_LOW} \
-   CONFIG.USE_POWER_DOWN {false} \
+   CONFIG.SECONDARY_SOURCE {Single_ended_clock_capable_pin} \
+   CONFIG.USE_INCLK_SWITCHOVER {false} \
  ] $clk_wiz_0
 
   # Create instance: i2s_receiver_0, and set properties
@@ -674,34 +728,47 @@ proc cr_bd_audio_controller { parentCell } {
   # Create instance: ps7_0_axi_periph, and set properties
   set ps7_0_axi_periph [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_interconnect:2.1 ps7_0_axi_periph ]
   set_property -dict [ list \
-   CONFIG.NUM_MI {2} \
+   CONFIG.NUM_MI {1} \
  ] $ps7_0_axi_periph
 
   # Create instance: rst_ps7_0_50M, and set properties
   set rst_ps7_0_50M [ create_bd_cell -type ip -vlnv xilinx.com:ip:proc_sys_reset:5.0 rst_ps7_0_50M ]
 
+  # Create instance: sample_scaler_0, and set properties
+  set block_name sample_scaler
+  set block_cell_name sample_scaler_0
+  if { [catch {set sample_scaler_0 [create_bd_cell -type module -reference $block_name $block_cell_name] } errmsg] } {
+     catch {common::send_msg_id "BD_TCL-105" "ERROR" "Unable to add referenced block <$block_name>. Please add the files for ${block_name}'s definition into the project."}
+     return 1
+   } elseif { $sample_scaler_0 eq "" } {
+     catch {common::send_msg_id "BD_TCL-106" "ERROR" "Unable to referenced block <$block_name>. Please add the files for ${block_name}'s definition into the project."}
+     return 1
+   }
+  
   # Create interface connections
-  connect_bd_intf_net -intf_net i2s_receiver_0_M_AXIS [get_bd_intf_pins i2s_receiver_0/M_AXIS] [get_bd_intf_pins i2s_transmitter_0/S_AXIS]
+  connect_bd_intf_net -intf_net axi4_stream_delay_0_M_AXIS [get_bd_intf_pins axi4_stream_delay_0/M_AXIS] [get_bd_intf_pins i2s_transmitter_0/S_AXIS]
+  connect_bd_intf_net -intf_net i2s_receiver_0_M_AXIS [get_bd_intf_pins axi4_stream_delay_0/S_AXIS] [get_bd_intf_pins i2s_receiver_0/M_AXIS]
   connect_bd_intf_net -intf_net processing_system7_0_DDR [get_bd_intf_ports DDR] [get_bd_intf_pins processing_system7_0/DDR]
   connect_bd_intf_net -intf_net processing_system7_0_FIXED_IO [get_bd_intf_ports FIXED_IO] [get_bd_intf_pins processing_system7_0/FIXED_IO]
   connect_bd_intf_net -intf_net processing_system7_0_M_AXI_GP0 [get_bd_intf_pins processing_system7_0/M_AXI_GP0] [get_bd_intf_pins ps7_0_axi_periph/S00_AXI]
   connect_bd_intf_net -intf_net ps7_0_axi_periph_M00_AXI [get_bd_intf_pins adau1761_controller_0/S00_AXI] [get_bd_intf_pins ps7_0_axi_periph/M00_AXI]
 
   # Create port connections
+  connect_bd_net -net Net [get_bd_ports adau1761_bclk_0] [get_bd_pins i2s_receiver_0/sck] [get_bd_pins i2s_transmitter_0/sck]
+  connect_bd_net -net Net1 [get_bd_ports adau1761_lrclk_0] [get_bd_pins i2s_receiver_0/ws] [get_bd_pins i2s_transmitter_0/ws]
   connect_bd_net -net adau1761_adc_sdata_0_1 [get_bd_ports adau1761_adc_sdata_0] [get_bd_pins i2s_receiver_0/sd]
-  connect_bd_net -net adau1761_bclk_0_1 [get_bd_ports adau1761_bclk_0] [get_bd_pins i2s_receiver_0/sck] [get_bd_pins i2s_transmitter_0/sck]
   connect_bd_net -net adau1761_controller_0_adau1761_cclk [get_bd_ports adau1761_cclk_0] [get_bd_pins adau1761_controller_0/adau1761_cclk]
   connect_bd_net -net adau1761_controller_0_adau1761_cdata [get_bd_ports adau1761_cdata_0] [get_bd_pins adau1761_controller_0/adau1761_cdata]
   connect_bd_net -net adau1761_controller_0_adau1761_clatchn [get_bd_ports adau1761_clatchn_0] [get_bd_pins adau1761_controller_0/adau1761_clatchn]
   connect_bd_net -net adau1761_cout_0_1 [get_bd_ports adau1761_cout_0] [get_bd_pins adau1761_controller_0/adau1761_cout]
-  connect_bd_net -net adau1761_lrclk_0_1 [get_bd_ports adau1761_lrclk_0] [get_bd_pins i2s_receiver_0/ws] [get_bd_pins i2s_transmitter_0/ws]
+  connect_bd_net -net axi4_stream_delay_0_sample [get_bd_pins axi4_stream_delay_0/sample] [get_bd_pins sample_scaler_0/sample_i]
   connect_bd_net -net clk_wiz_0_clk_out1 [get_bd_ports adau1761_mclk] [get_bd_pins clk_wiz_0/clk_out1]
-  connect_bd_net -net clk_wiz_0_locked [get_bd_ports led0] [get_bd_pins clk_wiz_0/locked]
   connect_bd_net -net i2s_transmitter_0_sd [get_bd_ports adau1761_dac_sdata_0] [get_bd_pins i2s_transmitter_0/sd]
-  connect_bd_net -net processing_system7_0_FCLK_CLK0 [get_bd_pins adau1761_controller_0/s00_axi_aclk] [get_bd_pins clk_wiz_0/clk_in1] [get_bd_pins i2s_receiver_0/M_AXIS_ACLK] [get_bd_pins i2s_transmitter_0/S_AXIS_ACLK] [get_bd_pins processing_system7_0/FCLK_CLK0] [get_bd_pins processing_system7_0/M_AXI_GP0_ACLK] [get_bd_pins ps7_0_axi_periph/ACLK] [get_bd_pins ps7_0_axi_periph/M00_ACLK] [get_bd_pins ps7_0_axi_periph/M01_ACLK] [get_bd_pins ps7_0_axi_periph/S00_ACLK] [get_bd_pins rst_ps7_0_50M/slowest_sync_clk]
+  connect_bd_net -net processing_system7_0_FCLK_CLK0 [get_bd_pins adau1761_controller_0/s00_axi_aclk] [get_bd_pins axi4_stream_delay_0/ACLK] [get_bd_pins clk_wiz_0/clk_in1] [get_bd_pins i2s_receiver_0/M_AXIS_ACLK] [get_bd_pins i2s_transmitter_0/S_AXIS_ACLK] [get_bd_pins processing_system7_0/FCLK_CLK0] [get_bd_pins processing_system7_0/M_AXI_GP0_ACLK] [get_bd_pins ps7_0_axi_periph/ACLK] [get_bd_pins ps7_0_axi_periph/M00_ACLK] [get_bd_pins ps7_0_axi_periph/S00_ACLK] [get_bd_pins rst_ps7_0_50M/slowest_sync_clk]
   connect_bd_net -net processing_system7_0_FCLK_RESET0_N [get_bd_pins clk_wiz_0/resetn] [get_bd_pins processing_system7_0/FCLK_RESET0_N] [get_bd_pins rst_ps7_0_50M/ext_reset_in]
   connect_bd_net -net rst_ps7_0_50M_interconnect_aresetn [get_bd_pins ps7_0_axi_periph/ARESETN] [get_bd_pins rst_ps7_0_50M/interconnect_aresetn]
-  connect_bd_net -net rst_ps7_0_50M_peripheral_aresetn [get_bd_pins adau1761_controller_0/s00_axi_aresetn] [get_bd_pins i2s_receiver_0/M_AXIS_ARESETN] [get_bd_pins i2s_transmitter_0/S_AXIS_ARESETN] [get_bd_pins ps7_0_axi_periph/M00_ARESETN] [get_bd_pins ps7_0_axi_periph/M01_ARESETN] [get_bd_pins ps7_0_axi_periph/S00_ARESETN] [get_bd_pins rst_ps7_0_50M/peripheral_aresetn]
+  connect_bd_net -net rst_ps7_0_50M_peripheral_aresetn [get_bd_pins adau1761_controller_0/s00_axi_aresetn] [get_bd_pins axi4_stream_delay_0/ARESETN] [get_bd_pins i2s_receiver_0/M_AXIS_ARESETN] [get_bd_pins i2s_transmitter_0/S_AXIS_ARESETN] [get_bd_pins ps7_0_axi_periph/M00_ARESETN] [get_bd_pins ps7_0_axi_periph/S00_ARESETN] [get_bd_pins rst_ps7_0_50M/peripheral_aresetn]
+  connect_bd_net -net sample_scaler_0_sample_o [get_bd_ports leds] [get_bd_pins sample_scaler_0/sample_o]
 
   # Create address segments
   create_bd_addr_seg -range 0x00010000 -offset 0x43C00000 [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs adau1761_controller_0/S00_AXI/S00_AXI_reg] SEG_adau1761_controller_0_S00_AXI_reg
@@ -713,9 +780,9 @@ proc cr_bd_audio_controller { parentCell } {
   save_bd_design
   close_bd_design $design_name 
 }
-# End of cr_bd_audio_controller()
-cr_bd_audio_controller ""
-set_property SYNTH_CHECKPOINT_MODE "Hierarchical" [get_files audio_controller.bd ] 
+# End of cr_bd_audio_processing()
+cr_bd_audio_processing ""
+set_property SYNTH_CHECKPOINT_MODE "Hierarchical" [get_files audio_processing.bd ] 
 
 # Create 'synth_1' run (if not found)
 if {[string equal [get_runs -quiet synth_1] ""]} {

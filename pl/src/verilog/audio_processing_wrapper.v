@@ -1,15 +1,15 @@
 //Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
 //--------------------------------------------------------------------------------
 //Tool Version: Vivado v.2018.1 (lin64) Build 2188600 Wed Apr  4 18:39:19 MDT 2018
-//Date        : Fri May 11 19:45:51 2018
+//Date        : Mon May 28 22:57:50 2018
 //Host        : charmander running 64-bit Ubuntu 16.04.4 LTS
-//Command     : generate_target audio_controller_wrapper.bd
-//Design      : audio_controller_wrapper
+//Command     : generate_target audio_processing_wrapper.bd
+//Design      : audio_processing_wrapper
 //Purpose     : IP block netlist
 //--------------------------------------------------------------------------------
 `timescale 1 ps / 1 ps
 
-module audio_controller_wrapper
+module audio_processing_wrapper
    (DDR_addr,
     DDR_ba,
     DDR_cas_n,
@@ -40,7 +40,7 @@ module audio_controller_wrapper
     adau1761_dac_sdata_0,
     adau1761_lrclk_0,
     adau1761_mclk,
-    led0);
+    leds);
   inout [14:0]DDR_addr;
   inout [2:0]DDR_ba;
   inout DDR_cas_n;
@@ -71,7 +71,7 @@ module audio_controller_wrapper
   output adau1761_dac_sdata_0;
   input adau1761_lrclk_0;
   output adau1761_mclk;
-  output led0;
+  output [7:0]leds;
 
   wire [14:0]DDR_addr;
   wire [2:0]DDR_ba;
@@ -103,9 +103,9 @@ module audio_controller_wrapper
   wire adau1761_dac_sdata_0;
   wire adau1761_lrclk_0;
   wire adau1761_mclk;
-  wire led0;
+  wire [7:0]leds;
 
-  audio_controller audio_controller_i
+  audio_processing audio_processing_i
        (.DDR_addr(DDR_addr),
         .DDR_ba(DDR_ba),
         .DDR_cas_n(DDR_cas_n),
@@ -136,5 +136,5 @@ module audio_controller_wrapper
         .adau1761_dac_sdata_0(adau1761_dac_sdata_0),
         .adau1761_lrclk_0(adau1761_lrclk_0),
         .adau1761_mclk(adau1761_mclk),
-        .led0(led0));
+        .leds(leds));
 endmodule
