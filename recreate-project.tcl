@@ -63,7 +63,7 @@ if { $::argc > 0 } {
 }
 
 # Set the directory path for the original project from where this script was exported
-set orig_proj_dir "[file normalize "$origin_dir/../../tutorial20/audio-processing"]"
+set orig_proj_dir "[file normalize "$origin_dir/audio-processing"]"
 
 # Create project
 create_project ${_xil_proj_name_} ./${_xil_proj_name_} -part xc7z020clg484-1

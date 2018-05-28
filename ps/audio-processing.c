@@ -67,14 +67,16 @@ void init_adau1761(void) {
         ;
     //  I2S master mode
     write_adau1761(0x4015, 0x01, 1);
-    //  left mixer enable
-    write_adau1761(0x400a, 0x01, 1);
-    //  left 0db
-    write_adau1761(0x400b, 0x05, 1);
-    //  right mixer enable
-    write_adau1761(0x400c, 0x01, 1);
-    //  right 0db
-    write_adau1761(0x400d, 0x05, 1);
+    //  left mixer enable, mic 6dB
+    write_adau1761(0x400a, 0x0f, 1);
+    //  left 6db
+    write_adau1761(0x400b, 0x07, 1);
+    //  right mixer enable, mic 6dB
+    write_adau1761(0x400c, 0x0f, 1);
+    //  right 6db
+    write_adau1761(0x400d, 0x07, 1);
+    // Mic bias
+    write_adau1761(0x4010, 0x5, 1);
     //  Playback left mixer unmute, enable
     write_adau1761(0x401c, 0x21, 1);
     //  Playback right mixer unmute, enable
@@ -106,4 +108,5 @@ void init_adau1761(void) {
 int main(void) {
     reset_adau1761();
     init_adau1761();
+    return 0;
 }
