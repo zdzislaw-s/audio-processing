@@ -17,9 +17,6 @@ The instructions below describe artefacts that are present in this repository an
 The layout of the repository is as follows:
 
 ```
-ps/
-    ps/stopwatch.c - C code that is executed by the Processing System.
-
 pl/ - artefacts relevant to the Programmable Logic - of the most importance are:
     ip_repo/ - location of IP source files .
         user.org_user_i2s_receiver_1.0/ - i2s_receiver.
